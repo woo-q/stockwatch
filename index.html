@@ -460,9 +460,107 @@ function tick(){
   if(curTab==='ai') renderAI();
 }
 
+// ── Yahoo Finance real prices ─────────────────────────────────────────────────
+const PROXY = 'https://api.allorigins.win/get?url=';
+const YF = 'https://query1.finance.yahoo.com/v8/finance/spark?symbols=';
+
+// Map our symbols to Yahoo symbols
+const TW_YF = {'2330':'2330.TW','2317':'2317.TW','2454':'2454.TW','2382':'2382.TW','2303':'2303.TW','2308':'2308.TW','2412':'2412.TW','2881':'2881.TW','3008':'3008.TW','2891':'2891.TW'};
+const US_YF = {'NVDA':'NVDA','AAPL':'AAPL','TSMC':'TSM','MSFT':'MSFT','AMD':'AMD','META':'META','GOOGL':'GOOGL','AMZN':'AMZN','AVGO':'AVGO','TSM':'TSM'};
+// Index symbols
+const IDX_YF = {
+  tw: ['^TWII', '^TWOII', null],
+  us: ['^GSPC', '^IXIC', '^SOX', '^DJI']
+};
+
+let fetchStatus = ''; // 顯示抓取狀態
+
+async function fetchPrices(symbols) {
+  const joined = symbols.join(',');
+  const url = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${joined}&range=1d&interval=5m`;
+  const proxy = `${PROXY}${encodeURIComponent(url)}`;
+  const r = await fetch(proxy);
+  const j = await r.json();
+  return JSON.parse(j.contents);
+}
+
+async function fetchQuotes(symbols) {
+  const joined = symbols.join(',');
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${joined}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketVolume`;
+  const proxy = `${PROXY}${encodeURIComponent(url)}`;
+  const r = await fetch(proxy);
+  const j = await r.json();
+  return JSON.parse(j.contents);
+}
+
+async function refreshPrices() {
+  try {
+    // Fetch TW stocks
+    const twSyms = tw.map(s => TW_YF[s.symbol]).filter(Boolean);
+    const usSyms = us.map(s => US_YF[s.symbol]).filter(Boolean);
+    const allSyms = [...twSyms, ...usSyms];
+
+    const data = await fetchQuotes(allSyms);
+    const quotes = data?.quoteResponse?.result || [];
+    const qMap = {};
+    quotes.forEach(q => { qMap[q.symbol] = q; });
+
+    let updated = 0;
+
+    tw = tw.map(s => {
+      const yfSym = TW_YF[s.symbol];
+      const q = yfSym && qMap[yfSym];
+      if (q && q.regularMarketPrice) {
+        updated++;
+        const newPrice = q.regularMarketPrice;
+        const newChange = +(q.regularMarketChangePercent || 0).toFixed(2);
+        return { ...s, price: newPrice, change: newChange, spark: [...s.spark.slice(1), newPrice] };
+      }
+      return s;
+    });
+
+    us = us.map(s => {
+      const yfSym = US_YF[s.symbol];
+      const q = yfSym && qMap[yfSym];
+      if (q && q.regularMarketPrice) {
+        updated++;
+        const newPrice = q.regularMarketPrice;
+        const newChange = +(q.regularMarketChangePercent || 0).toFixed(2);
+        return { ...s, price: newPrice, change: newChange, spark: [...s.spark.slice(1), newPrice] };
+      }
+      return s;
+    });
+
+    // Update selected
+    if (sel && selM) {
+      const l = selM === 'tw' ? tw : us;
+      const u = l.find(s => s.symbol === sel.symbol);
+      if (u) sel = u;
+    }
+
+    fetchStatus = updated > 0 ? `真實報價 · 更新 ${new Date().toLocaleTimeString('zh-TW',{hour12:false})}` : '模擬報價（API 無回應）';
+    updateFooter();
+    renderIdx(); render('tw'); render('us');
+    if (curTab === 'ai') renderAI();
+
+  } catch(e) {
+    fetchStatus = '模擬報價（API 連線失敗）';
+    updateFooter();
+  }
+}
+
+function updateFooter() {
+  document.getElementById('footer').textContent = `⚠ 僅供參考，不構成投資建議 · ${fetchStatus}`;
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderIdx(); render('tw'); render('us'); clock();
-setInterval(clock,1000); setInterval(tick,2000);
+setInterval(clock, 1000);
+setInterval(tick, 2000); // keep simulation running between real fetches
+
+// Fetch real prices immediately then every 60s
+refreshPrices();
+setInterval(refreshPrices, 60000);
 </script>
 
 <!-- PWA manifest inline -->

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#06080d"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="StockWatch"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<title>StockWatch</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+:root{
+  --bg:#06080d;--panel:#0c0f18;--card:#10141f;--border:#1a2035;
+  --tw:#00d4aa;--tw-dim:#00d4aa15;--us:#4d9eff;--us-dim:#4d9eff15;
+  --red:#ff4c6a;--red-dim:#ff4c6a15;--gold:#f5c842;
+  --text:#dde4f0;--sub:#8896b3;--muted:#4a5470;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;overflow:hidden;}
+body{padding-top:var(--safe-top);}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+button{font-family:inherit;cursor:pointer;}
+input{font-family:inherit;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* Topbar */
+#topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.logo{
+  font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;letter-spacing:1px;
+  background:linear-gradient(90deg,var(--tw),var(--us));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+#clock{color:var(--sub);font-family:'IBM Plex Mono',monospace;font-size:12px;}
+
+/* Tabbar */
+#tabbar{display:flex;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{
+  flex:1;padding:11px 0;text-align:center;font-size:12px;font-weight:500;
+  color:var(--muted);border:none;background:transparent;
+  border-bottom:2px solid transparent;transition:all .15s;
+}
+.tab.tw-on{color:var(--tw);border-bottom-color:var(--tw);}
+.tab.us-on{color:var(--us);border-bottom-color:var(--us);}
+.tab.ai-on{border-bottom-color:var(--gold);}
+.tab.ai-on span{
+  background:linear-gradient(90deg,var(--tw),var(--us));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+/* Pages */
+#content{flex:1;overflow:hidden;position:relative;}
+.page{position:absolute;inset:0;overflow-y:auto;display:none;flex-direction:column;}
+.page.on{display:flex;}
+
+/* Index strip */
+.idx-strip{padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;}
+.idx-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.mkt-name{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;}
+.mkt-status{display:flex;align-items:center;gap:5px;font-size:10px;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.idx-row{display:flex;flex-wrap:wrap;gap:12px;}
+.idx-item .iname{color:var(--muted);font-size:9px;display:block;}
+.idx-item .ival{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:12px;display:block;}
+.idx-item .ichg{font-family:'IBM Plex Mono',monospace;font-size:10px;display:block;}
+
+/* Search */
+.sbar{padding:7px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sbar input{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:12px;padding:7px 10px;outline:none;
+}
+
+/* Col header */
+.col-head{
+  display:grid;grid-template-columns:58px 1fr 58px 68px 72px;
+  gap:6px;padding:4px 14px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.col-head span{color:var(--muted);font-size:9px;}
+
+/* Stock row */
+.srow{
+  display:grid;grid-template-columns:58px 1fr 58px 68px 72px;
+  align-items:center;gap:6px;padding:10px 14px;
+  border-bottom:1px solid var(--border);cursor:pointer;
+  border-left:2px solid transparent;
+}
+.srow:active{background:var(--card);}
+.srow.sel-tw{background:#0b1e1a;border-left-color:var(--tw);}
+.srow.sel-us{background:#0b1521;border-left-color:var(--us);}
+.sym{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:11px;}
+.sname{font-size:11px;font-weight:500;}
+.ssec{font-size:9px;color:var(--muted);}
+.sprice{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;text-align:right;}
+.badge{
+  font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:11px;
+  padding:2px 5px;border-radius:4px;text-align:center;white-space:nowrap;
+}
+.up{color:var(--tw);} .upbg{background:var(--tw-dim);}
+.dn{color:var(--red);} .dnbg{background:var(--red-dim);}
+
+/* Temp */
+.temp-box{
+  margin:10px 14px;background:var(--card);border-radius:8px;padding:12px;
+  border:1px solid #f5c84222;flex-shrink:0;
+}
+.temp-title{color:var(--gold);font-size:11px;font-weight:700;margin-bottom:8px;}
+.temp-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:11px;}
+.temp-bg{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;}
+.temp-fill{height:100%;border-radius:3px;transition:width .6s;}
+.temp-note{color:var(--muted);font-size:10px;margin-top:5px;}
+
+/* AI page */
+#ai-wrap{padding:14px;display:flex;flex-direction:column;gap:12px;}
+.ai-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;padding:60px 20px;color:var(--muted);font-size:13px;text-align:center;
+}
+.ai-stock-card{border-radius:8px;padding:14px;border:1px solid transparent;}
+.ai-qs{display:flex;flex-wrap:wrap;gap:6px;}
+.ai-q{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  color:var(--text);font-size:11px;padding:5px 12px;
+}
+.ai-irow{display:flex;gap:8px;}
+.ai-irow input{
+  flex:1;background:var(--card);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:12px;padding:8px 12px;outline:none;
+}
+.ai-send{
+  background:var(--tw);border:none;border-radius:6px;
+  color:#000;font-weight:700;font-size:12px;padding:8px 14px;
+}
+.ai-dots{display:flex;gap:5px;align-items:center;}
+.ai-dot{width:6px;height:6px;border-radius:50%;}
+.ai-result{
+  background:var(--card);border-radius:8px;padding:14px;
+  color:var(--text);font-size:13px;line-height:1.8;
+  animation:fadeIn .3s ease;
+}
+.ai-hist{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;}
+.ai-hist-meta{color:var(--muted);font-size:10px;margin-bottom:4px;}
+.ai-hist-text{color:var(--sub);font-size:12px;line-height:1.6;}
+
+/* Footer */
+#footer{
+  padding:5px 16px;
+  padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
+  background:var(--panel);border-top:1px solid var(--border);
+  font-size:10px;color:var(--muted);text-align:center;flex-shrink:0;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div>
+      <div class="logo">◈ STOCKWATCH</div>
+    </div>
+    <div id="clock"></div>
+  </div>
+
+  <div id="tabbar">
+    <button class="tab tw-on" onclick="go('tw')">🇹🇼 台股</button>
+    <button class="tab" onclick="go('us')">🇺🇸 美股</button>
+    <button class="tab" onclick="go('ai')"><span>✦ AI分析</span></button>
+  </div>
+
+  <div id="content">
+    <!-- TW -->
+    <div class="page on" id="page-tw">
+      <div class="idx-strip">
+        <div class="idx-head">
+          <span class="mkt-name" style="color:var(--tw)">台灣股市</span>
+          <span class="mkt-status">
+            <span class="dot" id="tw-dot"></span>
+            <span id="tw-st" style="color:var(--muted)">休市</span>
+            <span style="color:var(--muted)">09:00–13:30</span>
+          </span>
+        </div>
+        <div class="idx-row" id="tw-idx"></div>
+      </div>
+      <div class="sbar"><input id="tw-q" placeholder="搜尋台股…" oninput="render('tw')"/></div>
+      <div class="col-head">
+        <span>代號</span><span>名稱</span>
+        <span style="text-align:center">走勢</span>
+        <span style="text-align:right">現價</span>
+        <span style="text-align:center">漲跌</span>
+      </div>
+      <div id="tw-list" style="flex:1;overflow-y:auto;"></div>
+      <div class="temp-box">
+        <div class="temp-title">⚡ 台股溫度計</div>
+        <div class="temp-row"><span style="color:var(--muted)">上漲比例</span><span id="tw-tv" style="font-family:monospace;color:var(--text);font-size:12px;"></span></div>
+        <div class="temp-bg"><div class="temp-fill" id="tw-tf" style="background:linear-gradient(90deg,var(--red),var(--tw))"></div></div>
+        <div class="temp-note" id="tw-tn"></div>
+      </div>
+    </div>
+
+    <!-- US -->
+    <div class="page" id="page-us">
+      <div class="idx-strip">
+        <div class="idx-head">
+          <span class="mkt-name" style="color:var(--us)">美國股市</span>
+          <span class="mkt-status">
+            <span class="dot" id="us-dot"></span>
+            <span id="us-st" style="color:var(--muted)">休市</span>
+            <span style="color:var(--muted)">21:30–04:00</span>
+          </span>
+        </div>
+        <div class="idx-row" id="us-idx"></div>
+      </div>
+      <div class="sbar"><input id="us-q" placeholder="搜尋美股…" oninput="render('us')"/></div>
+      <div class="col-head">
+        <span>代號</span><span>名稱</span>
+        <span style="text-align:center">走勢</span>
+        <span style="text-align:right">現價</span>
+        <span style="text-align:center">漲跌</span>
+      </div>
+      <div id="us-list" style="flex:1;overflow-y:auto;"></div>
+      <div class="temp-box" style="border-color:#4d9eff22;">
+        <div class="temp-title" style="color:var(--us)">⚡ 美股溫度計</div>
+        <div class="temp-row"><span style="color:var(--muted)">上漲比例</span><span id="us-tv" style="font-family:monospace;color:var(--text);font-size:12px;"></span></div>
+        <div class="temp-bg"><div class="temp-fill" id="us-tf" style="background:linear-gradient(90deg,var(--red),var(--us))"></div></div>
+        <div class="temp-note" id="us-tn"></div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="page" id="page-ai" style="overflow-y:auto;">
+      <div id="ai-wrap"></div>
+    </div>
+  </div>
+
+  <div id="footer">⚠ 模擬報價，僅供參考，不構成投資建議</div>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const TW_S=[
+  {symbol:'2330',name:'台積電',price:985,change:2.3,vol:'120億',sector:'半導體'},
+  {symbol:'2317',name:'鴻海',price:215,change:-0.9,vol:'85億',sector:'EMS'},
+  {symbol:'2454',name:'聯發科',price:1250,change:-1.2,vol:'28億',sector:'半導體'},
+  {symbol:'2382',name:'廣達',price:310,change:1.5,vol:'42億',sector:'伺服器'},
+  {symbol:'2303',name:'聯電',price:52.5,change:-0.4,vol:'65億',sector:'半導體'},
+  {symbol:'2308',name:'台達電',price:385,change:0.8,vol:'18億',sector:'電源'},
+  {symbol:'2412',name:'中華電',price:128,change:0.2,vol:'12億',sector:'電信'},
+  {symbol:'2881',name:'富邦金',price:89,change:1.1,vol:'35億',sector:'金融'},
+  {symbol:'3008',name:'大立光',price:2450,change:-0.6,vol:'8億',sector:'光學'},
+  {symbol:'2891',name:'中信金',price:32,change:0.9,vol:'55億',sector:'金融'},
+];
+const US_S=[
+  {symbol:'NVDA',name:'Nvidia',price:1342,change:3.1,vol:'38.7B',sector:'AI Chips'},
+  {symbol:'AAPL',name:'Apple',price:213,change:0.5,vol:'22.1B',sector:'Tech'},
+  {symbol:'TSMC',name:'TSMC ADR',price:198,change:2.1,vol:'12.4B',sector:'Semicon'},
+  {symbol:'MSFT',name:'Microsoft',price:435,change:0.3,vol:'19.8B',sector:'Cloud'},
+  {symbol:'AMD',name:'AMD',price:178,change:-1.4,vol:'28.2B',sector:'Chips'},
+  {symbol:'META',name:'Meta',price:524,change:1.9,vol:'15.6B',sector:'Social'},
+  {symbol:'GOOGL',name:'Alphabet',price:178,change:0.7,vol:'18.3B',sector:'Cloud'},
+  {symbol:'AMZN',name:'Amazon',price:194,change:-0.3,vol:'24.1B',sector:'E-com'},
+  {symbol:'AVGO',name:'Broadcom',price:168,change:1.2,vol:'11.2B',sector:'Semicon'},
+  {symbol:'TSM',name:'TSMC',price:196,change:2.0,vol:'10.1B',sector:'Semicon'},
+];
+const TW_I=[{name:'加權指數',value:22840,change:1.2},{name:'櫃買指數',value:245,change:0.8},{name:'半導體類',value:580,change:2.1}];
+const US_I=[{name:'S&P 500',value:5480,change:0.7},{name:'NASDAQ',value:19240,change:0.9},{name:'SOX',value:5890,change:2.1},{name:'DOW',value:43120,change:0.3}];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let tw=TW_S.map(s=>({...s,spark:spark(s.price)}));
+let us=US_S.map(s=>({...s,spark:spark(s.price)}));
+let twI=TW_I.map(i=>({...i})), usI=US_I.map(i=>({...i}));
+let sel=null, selM=null, curTab='tw';
+let aiHist=[], aiLoad=false;
+
+// ── Sparkline ─────────────────────────────────────────────────────────────────
+function spark(base,n=28){
+  const p=[base];
+  for(let i=1;i<n;i++) p.push(p[i-1]*(1+(Math.random()-0.492)*0.013));
+  return p;
+}
+function svgLine(d,col,w=56,h=22){
+  const mn=Math.min(...d),mx=Math.max(...d),r=mx-mn||1;
+  const pts=d.map((v,i)=>`${(i/(d.length-1))*w},${h-((v-mn)/r)*(h-4)-2}`).join(' ');
+  return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+
+// ── Tab ───────────────────────────────────────────────────────────────────────
+function go(tab){
+  curTab=tab;
+  document.querySelectorAll('.tab').forEach(b=>b.className='tab');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  const tabs=['tw','us','ai'];
+  const btns=document.querySelectorAll('.tab');
+  btns[tabs.indexOf(tab)].className='tab '+tab+'-on';
+  document.getElementById('page-'+tab).classList.add('on');
+  if(tab==='ai') renderAI();
+}
+
+// ── Indices ───────────────────────────────────────────────────────────────────
+function renderIdx(){
+  ['tw','us'].forEach(m=>{
+    const arr=m==='tw'?twI:usI;
+    const ac=m==='tw'?'var(--tw)':'var(--us)';
+    document.getElementById(m+'-idx').innerHTML=arr.map(i=>{
+      const up=i.change>=0;
+      return `<div class="idx-item">
+        <span class="iname">${i.name}</span>
+        <span class="ival">${i.value.toLocaleString()}</span>
+        <span class="ichg" style="color:${up?ac:'var(--red)'}">${up?'▲':'▼'}${Math.abs(i.change).toFixed(2)}%</span>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ── Stock list ────────────────────────────────────────────────────────────────
+function render(m){
+  const stocks=m==='tw'?tw:us;
+  const ac=m==='tw'?'var(--tw)':'var(--us)';
+  const q=(document.getElementById(m+'-q').value||'').toLowerCase();
+  const list=stocks.filter(s=>s.symbol.toLowerCase().includes(q)||s.name.toLowerCase().includes(q));
+  document.getElementById(m+'-list').innerHTML=list.map(s=>{
+    const up=s.change>=0;
+    const isSel=sel&&sel.symbol===s.symbol&&selM===m;
+    const px=m==='tw'?s.price.toFixed(1):`$${s.price.toFixed(0)}`;
+    return `<div class="srow${isSel?' sel-'+m:''}" onclick="pick('${s.symbol}','${m}')">
+      <span class="sym" style="color:${ac}">${s.symbol}</span>
+      <div><div class="sname">${s.name}</div><div class="ssec">${s.sector}</div></div>
+      <div>${svgLine(s.spark,up?ac.replace('var(--tw)','#00d4aa').replace('var(--us)','#4d9eff'):'#ff4c6a')}</div>
+      <span class="sprice">${px}</span>
+      <span class="badge ${up?'up upbg':'dn dnbg'}">${up?'▲':'▼'}${Math.abs(s.change).toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+  // temp
+  const up=stocks.filter(s=>s.change>0).length;
+  const r=up/stocks.length;
+  document.getElementById(m+'-tv').textContent=`${up}/${stocks.length} (${Math.round(r*100)}%)`;
+  document.getElementById(m+'-tf').style.width=(r*100)+'%';
+  document.getElementById(m+'-tn').textContent=r>.6?'多頭氣氛濃厚':r<.4?'空頭壓力偏重':'多空拉鋸態勢';
+}
+
+// ── Pick stock ────────────────────────────────────────────────────────────────
+function pick(sym,m){
+  const stocks=m==='tw'?tw:us;
+  sel=stocks.find(s=>s.symbol===sym);
+  selM=m;
+  render('tw'); render('us');
+  go('ai');
+}
+
+// ── AI ────────────────────────────────────────────────────────────────────────
+function renderAI(){
+  const wrap=document.getElementById('ai-wrap');
+  if(!sel){
+    wrap.innerHTML=`<div class="ai-empty"><span style="font-size:40px;opacity:.3">✦</span><span>請先從台股或美股<br>點選一支股票</span></div>`;
+    return;
+  }
+  const s=sel,m=selM;
+  const ac=m==='tw'?'var(--tw)':'var(--us)';
+  const acHex=m==='tw'?'#00d4aa':'#4d9eff';
+  const up=s.change>=0;
+  const px=m==='tw'?`NT$ ${s.price.toFixed(1)}`:`$ ${s.price.toFixed(2)}`;
+  const qs=m==='tw'
+    ?['現在買進時機？','技術面分析','法人動向','風險評估']
+    :['買進時機？','技術面分析','機構動向','風險評估'];
+
+  const dots=aiLoad?`<div class="ai-dots">${[0,1,2].map(i=>`<span class="ai-dot" style="background:${acHex};animation:bounce 1.2s ${i*.2}s infinite"></span>`).join('')}<span style="color:var(--muted);font-size:12px;margin-left:8px">Claude 分析中…</span></div>`:'';
+  const result=!aiLoad&&aiHist.length?`<div class="ai-result" style="border:1px solid ${acHex}33">${aiHist[0].a}</div>`:'';
+  const hist=aiHist.length>1?`<div style="color:var(--muted);font-size:10px;margin-bottom:6px">分析記錄</div>`+
+    aiHist.slice(1).map(h=>`<div class="ai-hist"><div class="ai-hist-meta">${h.ts} · ${h.q}</div><div class="ai-hist-text">${h.a}</div></div>`).join(''):'';
+
+  wrap.innerHTML=`
+    <div class="ai-stock-card" style="background:linear-gradient(135deg,${acHex}0d,var(--card));border-color:${acHex}33;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <span style="color:${ac};font-family:monospace;font-weight:700;font-size:15px">${s.symbol}</span>
+          <span style="color:var(--text);font-size:13px;margin-left:8px">${s.name}</span>
+        </div>
+        <span class="badge ${up?'up upbg':'dn dnbg'}">${up?'▲':'▼'}${Math.abs(s.change).toFixed(2)}%</span>
+      </div>
+      <div style="font-family:monospace;font-size:20px;font-weight:700;margin-top:6px">${px}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">${s.sector} · ${s.vol}</div>
+    </div>
+    <div class="ai-qs">${qs.map(q=>`<button class="ai-q" onclick="runAI('${q.replace(/'/g,"\\'")}')">
+      ${q}</button>`).join('')}</div>
+    <div class="ai-irow">
+      <input id="ai-in" placeholder="自訂問題…" onkeydown="if(event.key==='Enter')sendAI()"/>
+      <button class="ai-send" onclick="sendAI()">送出</button>
+    </div>
+    ${dots}${result}
+    ${hist?'<div>'+hist+'</div>':''}
+  `;
+}
+
+function sendAI(){
+  const v=document.getElementById('ai-in')?.value?.trim();
+  if(v) runAI(v);
+}
+
+async function runAI(prompt){
+  if(!sel||aiLoad) return;
+  aiLoad=true; renderAI();
+  const s=sel,m=selM;
+  const sys=m==='tw'
+    ?'你是台灣股市專業分析師，用繁體中文回答，150字以內，重點突出，給出明確操作建議。'
+    :'You are a US stock analyst. Reply in Traditional Chinese (繁體中文), under 150 characters, give clear trading advice.';
+  const q=prompt||(m==='tw'
+    ?`分析 ${s.symbol} ${s.name}，現價 ${s.price}，漲跌 ${s.change>0?'+':''}${s.change}%，請給操作建議。`
+    :`Analyze ${s.symbol} ${s.name}, price $${s.price}, change ${s.change}%. Reply in Traditional Chinese.`);
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:q}]})
+    });
+    const d=await r.json();
+    const text=d.content?.map(b=>b.text||'').join('')||'分析失敗，請稍後再試。';
+    aiHist=[{q:prompt||`分析 ${s.symbol}`,a:text,ts:new Date().toLocaleTimeString('zh-TW')},...aiHist].slice(0,5);
+  }catch{
+    aiHist=[{q:prompt||'分析',a:'⚠️ 網路錯誤，請稍後再試。',ts:new Date().toLocaleTimeString('zh-TW')},...aiHist].slice(0,5);
+  }
+  aiLoad=false; renderAI();
+}
+
+// ── Clock & status ────────────────────────────────────────────────────────────
+function clock(){
+  const n=new Date();
+  document.getElementById('clock').textContent=n.toLocaleTimeString('zh-TW',{hour12:false});
+  const t=n.getHours()*60+n.getMinutes();
+  const twO=t>=540&&t<810, usO=t>=1350||t<300;
+  ['tw','us'].forEach(m=>{
+    const open=m==='tw'?twO:usO;
+    const ac=m==='tw'?'var(--tw)':'var(--us)';
+    const dot=document.getElementById(m+'-dot');
+    const st=document.getElementById(m+'-st');
+    if(dot){dot.style.background=open?ac:'var(--muted)';dot.style.boxShadow=open?`0 0 7px ${ac}`:'none';}
+    if(st){st.style.color=open?ac:'var(--muted)';st.textContent=open?'盤中':'休市';}
+  });
+}
+
+// ── Tick ──────────────────────────────────────────────────────────────────────
+function tick(){
+  const mut=arr=>arr.map(s=>{
+    const d=(Math.random()-0.493)*0.35;
+    const np=+(s.price*(1+d/100)).toFixed(2);
+    return{...s,price:np,change:+(s.change+d/12).toFixed(2),spark:[...s.spark.slice(1),np]};
+  });
+  tw=mut(tw); us=mut(us);
+  twI=twI.map(i=>({...i,value:+(i.value*(1+(Math.random()-.498)*.001)).toFixed(0),change:+(i.change+(Math.random()-.5)*.04).toFixed(2)}));
+  usI=usI.map(i=>({...i,value:+(i.value*(1+(Math.random()-.498)*.001)).toFixed(0),change:+(i.change+(Math.random()-.5)*.04).toFixed(2)}));
+  if(sel&&selM){const l=selM==='tw'?tw:us;const u=l.find(s=>s.symbol===sel.symbol);if(u)sel=u;}
+  renderIdx(); render('tw'); render('us');
+  if(curTab==='ai') renderAI();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderIdx(); render('tw'); render('us'); clock();
+setInterval(clock,1000); setInterval(tick,2000);
+</script>
+
+<!-- PWA manifest inline -->
+<script>
+const mf={name:'StockWatch 雙市場盯盤',short_name:'StockWatch',start_url:'.',display:'standalone',background_color:'#06080d',theme_color:'#06080d',icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%2306080d'/%3E%3Ctext x='96' y='130' text-anchor='middle' font-size='100' fill='%2300d4aa'%3E◈%3C/text%3E%3C/svg%3E",sizes:'192x192',type:'image/svg+xml'}]};
+const blob=new Blob([JSON.stringify(mf)],{type:'application/manifest+json'});
+const url=URL.createObjectURL(blob);
+const link=document.createElement('link');
+link.rel='manifest';link.href=url;
+document.head.appendChild(link);
+</script>
+
+<!-- Service Worker -->
+<script>
+if('serviceWorker' in navigator){
+  const sw=`
+const C='sw1';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()));});
+self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});
+self.addEventListener('fetch',e=>{
+  if(e.request.url.includes('anthropic.com')||e.request.url.includes('fonts.gstatic')||e.request.url.includes('fonts.googleapis')){
+    e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503})));return;
+  }
+  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+});`;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob),{type:'classic'}).catch(()=>{});
+}
+</script>
+</body>
+</html>
